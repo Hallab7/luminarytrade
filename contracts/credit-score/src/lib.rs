@@ -14,6 +14,8 @@ use common_utils::dex::scoring_signals::{SignalAggregator, ScoringSignal, Signal
 use common_utils::dex::cache::{DexDataCache, CacheConfig};
 use common_utils::state_machine::{State, StateMachine, CreditScoreState};
 use common_utils::{state_guard, transition_to};
+use common_utils::fees::FeeModule;
+use common_utils::treasury::TreasuryModule;
 
 #[contracttype]
 pub enum DataKey {
@@ -186,6 +188,12 @@ impl CreditScoreContract {
         
         let _duration = PerformanceMonitor::end_timer(&env, &Symbol::new(&env, "calc_dex_score"));
         
+        // Collect Service Fee (mock amount 1000 for calculation)
+        if !FeeModule::is_whitelisted(&env, &account_id) {
+            let fee = FeeModule::calculate_service_fee(&env, 1000, false);
+            TreasuryModule::collect_and_distribute(&env, &account_id, fee);
+        }
+
         Ok(adjusted_score as u32)
     }
 
@@ -219,6 +227,12 @@ impl CreditScoreContract {
         
         let _duration = PerformanceMonitor::end_timer(&env, &Symbol::new(&env, "get_score"));
         
+        // Collect Usage Fee for API call
+        if !FeeModule::is_whitelisted(&env, &account_id) {
+            let usage_fee = 10; // Flat usage fee for get_score
+            TreasuryModule::collect_and_distribute(&env, &account_id, usage_fee);
+        }
+
         Ok(result)
     }
 

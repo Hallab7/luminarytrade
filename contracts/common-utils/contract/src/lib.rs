@@ -13,6 +13,8 @@ pub mod upgrade_proxy;
 pub mod migration;
 pub mod state_machine;
 pub mod dex;
+pub mod fees;
+pub mod treasury;
 
 pub use error::CommonError;
 pub use state_machine::{State, StateMachine, FraudDetectState, RiskEvalState, CreditScoreState, state_guard, transition_to};
@@ -259,3 +261,6 @@ mod rate_limit_tests;
 
 #[cfg(test)]
 mod state_machine_tests;
+
+#[cfg(test)]
+mod fees_tests;
