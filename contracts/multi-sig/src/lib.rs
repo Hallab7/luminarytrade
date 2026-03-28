@@ -21,6 +21,7 @@ use soroban_sdk::{
     Val, TryFromVal,
 };
 use common_utils::error::CommonError;
+use common_utils::compliance_log::{ComplianceLogger, ComplianceAction};
 
 // ============================================================================
 // Storage Keys
@@ -425,8 +426,22 @@ impl MultiSignatureContract {
         // Emit event
         env.events().publish(
             (symbol_short!("prop_crt"),),
-            (proposal_id, operation as u32, creator),
+            (proposal_id, operation as u32, creator.clone()),
         );
+
+        // Compliance audit log – ProposalCreated
+        if ComplianceLogger::is_initialized(env) {
+            let id_bytes = Bytes::from_slice(env, &(proposal_id as u64).to_le_bytes());
+            ComplianceLogger::append(
+                env,
+                creator.clone(),
+                ComplianceAction::ProposalCreated,
+                id_bytes.clone(),
+                Bytes::new(env),
+                id_bytes,
+                BytesN::from_array(env, &[0u8; 32]),
+            );
+        }
 
         Ok(proposal_id)
     }
@@ -490,8 +505,23 @@ impl MultiSignatureContract {
         // Emit event
         env.events().publish(
             (symbol_short!("prop_appr"),),
-            (proposal_id, approver, proposal.approval_count),
+            (proposal_id, approver.clone(), proposal.approval_count),
         );
+
+        // Compliance audit log – ProposalApproved
+        if ComplianceLogger::is_initialized(&env) {
+            let id_bytes = Bytes::from_slice(&env, &(proposal_id as u64).to_le_bytes());
+            let count_bytes = Bytes::from_slice(&env, &(proposal.approval_count as u64).to_le_bytes());
+            ComplianceLogger::append(
+                &env,
+                approver.clone(),
+                ComplianceAction::ProposalApproved,
+                id_bytes,
+                Bytes::new(&env),
+                count_bytes,
+                BytesN::from_array(&env, &[0u8; 32]),
+            );
+        }
 
         Ok(proposal.status)
     }
@@ -556,6 +586,21 @@ impl MultiSignatureContract {
             (symbol_short!("prop_exec"),),
             (proposal_id, success),
         );
+
+        // Compliance audit log – ProposalExecuted
+        if ComplianceLogger::is_initialized(&env) {
+            let id_bytes = Bytes::from_slice(&env, &(proposal_id as u64).to_le_bytes());
+            let result_bytes = Bytes::from_slice(&env, if success { b"\x01" } else { b"\x00" });
+            ComplianceLogger::append(
+                &env,
+                executor.clone(),
+                ComplianceAction::ProposalExecuted,
+                id_bytes,
+                Bytes::new(&env),
+                result_bytes,
+                BytesN::from_array(&env, &[0u8; 32]),
+            );
+        }
 
         Ok(success)
     }

@@ -39,9 +39,10 @@
 
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, panic_with_error,
-    Address, Env, Map, Symbol, Vec, IntoVal, Val,
+    Address, Bytes, BytesN, Env, Map, Symbol, Vec, IntoVal, Val,
 };
 use common_utils::error::CommonError;
+use common_utils::compliance_log::{ComplianceLogger, ComplianceAction};
 
 // ============================================================================
 // Storage Keys
@@ -436,7 +437,23 @@ impl StakingContract {
             (symbol_short!("stake"), oracle.clone()),
             (amount, tier as u32),
         );
-        
+
+        // Compliance audit log – StakeAdded (fund movement)
+        if ComplianceLogger::is_initialized(&env) {
+            let amt_bytes = Bytes::from_slice(&env, &amount.to_le_bytes());
+            let oracle_str: soroban_sdk::String = oracle.clone().to_string();
+            let target_bytes = Bytes::from_slice(&env, oracle_str.as_bytes());
+            ComplianceLogger::append(
+                &env,
+                oracle.clone(),
+                ComplianceAction::StakeAdded,
+                target_bytes,
+                Bytes::new(&env),
+                amt_bytes,
+                BytesN::from_array(&env, &[0u8; 32]),
+            );
+        }
+
         Ok(stake_info)
     }
 
@@ -745,7 +762,25 @@ impl StakingContract {
             (symbol_short!("slash"), oracle.clone()),
             (slash_amount, slash_amount),
         );
-        
+
+        // Compliance audit log – StakeRemoved (fund movement / slashing)
+        if ComplianceLogger::is_initialized(&env) {
+            let old_bytes = Bytes::from_slice(&env, &(stake_info.amount + slash_amount).to_le_bytes());
+            let new_bytes = Bytes::from_slice(&env, &stake_info.amount.to_le_bytes());
+            let oracle_str: soroban_sdk::String = oracle.clone().to_string();
+            let target_bytes = Bytes::from_slice(&env, oracle_str.as_bytes());
+            let actor = reporter.clone().unwrap_or(oracle.clone());
+            ComplianceLogger::append(
+                &env,
+                actor,
+                ComplianceAction::StakeRemoved,
+                target_bytes,
+                old_bytes,
+                new_bytes,
+                BytesN::from_array(&env, &[0u8; 32]),
+            );
+        }
+
         Ok(slash_record)
     }
 
