@@ -1,110 +1,56 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as api from '@opentelemetry/api';
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { Resource } from '@opentelemetry/resources';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
-import { BatchSpanProcessor, BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
+import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
-import {
-  AlwaysOnSampler,
-  ParentBasedSampler,
-  TraceIdRatioBasedSampler,
-} from '@opentelemetry/sdk-trace-node';
+import { JaegerConfigService, TracingConfig } from './jaeger.config';
 
 @Injectable()
-export class TracingService implements OnModuleInit {
+export class TracingService implements OnModuleInit, OnModuleDestroy {
   private sdk: NodeSDK;
   private tracer: api.Tracer;
+  private config: TracingConfig;
 
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private jaegerConfigService: JaegerConfigService
+  ) {}
 
   async onModuleInit() {
     await this.initializeTracing();
   }
 
   private async initializeTracing() {
+    this.config = this.jaegerConfigService.getConfig();
     const environment = this.configService.get('NODE_ENV', 'development');
-    const serviceName = this.configService.get('SERVICE_NAME', 'chenaikit-backend');
-    const serviceVersion = this.configService.get('SERVICE_VERSION', '0.1.0');
-    const jaegerEndpoint = this.configService.get('JAEGER_ENDPOINT', 'http://localhost:14268/api/traces');
     const tracingDisabled = this.configService.get('TRACING_DISABLED', 'false') === 'true';
 
-    if (environment === 'test' || tracingDisabled) {
+    if (environment === 'test' || tracingDisabled || !this.config.jaeger.enabled) {
       const provider = new BasicTracerProvider();
       provider.register({
         contextManager: new AsyncLocalStorageContextManager().enable(),
       });
-      this.tracer = api.trace.getTracer(serviceName, serviceVersion);
+      this.tracer = api.trace.getTracer(this.config.jaeger.serviceName, this.config.jaeger.serviceVersion);
       return;
     }
 
-    // Configure sampler based on environment
-    const sampler = this.createSampler(environment);
-
-    // Create Jaeger exporter
-    const jaegerExporter = new JaegerExporter({
-      endpoint: jaegerEndpoint,
-    });
-
-    // Initialize SDK
-    this.sdk = new NodeSDK({
-      resource: new Resource({
-        [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
-        [SemanticResourceAttributes.SERVICE_VERSION]: serviceVersion,
-        [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: environment,
-      }),
-      spanProcessor: new BatchSpanProcessor(jaegerExporter),
-      sampler,
-      instrumentations: [
-        getNodeAutoInstrumentations({
-          '@opentelemetry/instrumentation-fs': {
-            enabled: false, // Disable fs instrumentation to reduce noise
-          },
-          '@opentelemetry/instrumentation-http': {
-            enabled: true,
-            requestHook: (span, request) => {
-              span.setAttribute('http.request.headers', JSON.stringify(request.headers));
-            },
-          },
-          '@opentelemetry/instrumentation-express': {
-            enabled: true,
-          },
-          '@opentelemetry/instrumentation-pg': {
-            enabled: true,
-            enhancedDatabaseReporting: true,
-          },
-          '@opentelemetry/instrumentation-redis': {
-            enabled: true,
-          },
-        }),
-      ],
-    });
-
+    // Initialize SDK with configuration
+    this.sdk = this.jaegerConfigService.createNodeSDK(this.config);
     await this.sdk.start();
-    this.tracer = api.trace.getTracer(serviceName, serviceVersion);
+    this.tracer = api.trace.getTracer(this.config.jaeger.serviceName, this.config.jaeger.serviceVersion);
 
     console.log('🔍 OpenTelemetry tracing initialized');
-    console.log(`📊 Exporting traces to: ${jaegerEndpoint}`);
-  }
-
-  private createSampler(environment: string): api.Sampler {
-    if (environment === 'production') {
-      // Sample 10% of traces in production
-      return new ParentBasedSampler({
-        root: new TraceIdRatioBasedSampler(0.1),
-      });
-    }
-    // Sample all traces in development
-    return new AlwaysOnSampler();
+    console.log(`📊 Service: ${this.config.jaeger.serviceName} v${this.config.jaeger.serviceVersion}`);
+    console.log(`🌍 Environment: ${this.config.jaeger.environment}`);
+    console.log(`� Sampling rate: ${(this.config.jaeger.samplingRate * 100).toFixed(1)}%`);
+    console.log(`� Jaeger endpoint: ${this.config.jaeger.endpoint}`);
   }
 
   getTracer(): api.Tracer {
     if (!this.tracer) {
-      const serviceName = this.configService.get('SERVICE_NAME', 'chenaikit-backend');
-      const serviceVersion = this.configService.get('SERVICE_VERSION', '0.1.0');
+      const serviceName = this.configService.get('SERVICE_NAME', 'luminarytrade-backend');
+      const serviceVersion = this.configService.get('SERVICE_VERSION', '1.0.0');
       const environment = this.configService.get('NODE_ENV', 'development');
 
       if (environment === 'test') {

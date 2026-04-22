@@ -22,6 +22,7 @@ pub mod compression;
 pub mod storage_optimization;
 pub mod storage_monitoring;
 pub mod data_migration;
+pub mod compliance_log;
 
 pub use error::CommonError;
 pub use state_machine::{State, StateMachine, FraudDetectState, RiskEvalState, CreditScoreState, state_guard, transition_to};
@@ -269,3 +270,6 @@ mod state_machine_tests;
 
 #[cfg(test)]
 mod fees_tests;
+
+#[cfg(test)]
+mod compliance_log_tests;

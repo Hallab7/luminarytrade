@@ -1,4 +1,4 @@
-import { Args, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
+import { Args, Context, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { IndexerService } from '../../agent/indexer.service';
 import {
@@ -9,17 +9,22 @@ import {
 import { GraphqlPubSub } from '../pubsub.service';
 import { AGENT_UPDATED_EVENT } from '../graphql.constants';
 import { GqlJwtAuthGuard } from '../guards/gql-jwt-auth.guard';
+import { DataLoaderService } from '../dataloader.service';
+
+const MAX_PAGE_SIZE = 100;
 
 @Resolver('Agent')
 export class AgentResolver {
   constructor(
     private readonly indexerService: IndexerService,
     private readonly pubSub: GraphqlPubSub,
+    private readonly dataLoaderService: DataLoaderService,
   ) {}
 
   @Query('agent')
   async agent(@Args('id') id: string) {
-    return this.indexerService.findOne(id);
+    // Use DataLoader to batch/deduplicate single-item lookups
+    return this.dataLoaderService.agentLoader.load(id);
   }
 
   @Query('agents')
@@ -28,11 +33,12 @@ export class AgentResolver {
     @Args('offset', { nullable: true }) offset = 0,
     @Args('filter', { nullable: true }) filter?: AgentFilterInput,
   ) {
-    const page = Math.floor(offset / limit) + 1;
+    const safeLimit = Math.min(limit, MAX_PAGE_SIZE);
+    const page = Math.floor(offset / safeLimit) + 1;
     const result = await this.indexerService.search({
       ...(filter || {}),
       page,
-      limit,
+      limit: safeLimit,
     });
     return result.data;
   }
@@ -43,11 +49,12 @@ export class AgentResolver {
     @Args('limit', { nullable: true }) limit = 10,
     @Args('offset', { nullable: true }) offset = 0,
   ) {
-    const page = Math.floor(offset / limit) + 1;
+    const safeLimit = Math.min(limit, MAX_PAGE_SIZE);
+    const page = Math.floor(offset / safeLimit) + 1;
     const result = await this.indexerService.search({
       name: term,
       page,
-      limit,
+      limit: safeLimit,
     });
     return result.data;
   }

@@ -2,9 +2,10 @@
 
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, 
-    Address, Env, Symbol, Vec, panic_with_error, IntoVal,
+    Address, Bytes, BytesN, Env, Symbol, Vec, panic_with_error, IntoVal,
 };
 use crate::error::AuthorizationError;
+use crate::compliance_log::{ComplianceLogger, ComplianceAction};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[contracttype]
@@ -58,17 +59,55 @@ impl ACLContract {
         }
 
         // Emit RoleGranted event
-        env.events().publish((symbol_short!("role_grt"), user), (role, expiry));
+        env.events().publish((symbol_short!("role_grt"), user.clone()), (role, expiry));
+
+        // Compliance audit log – RoleAssigned (access control)
+        if ComplianceLogger::is_initialized(&env) {
+            let role_bytes = Bytes::from_slice(&env, &(role as u32).to_le_bytes());
+            let user_str: soroban_sdk::String = user.clone().to_string();
+            let target_bytes = Bytes::from_slice(&env, user_str.as_bytes());
+            ComplianceLogger::append(
+                &env,
+                admin.clone(),
+                ComplianceAction::RoleAssigned,
+                target_bytes,
+                Bytes::new(&env),
+                role_bytes,
+                BytesN::from_array(&env, &[0u8; 32]),
+            );
+        }
     }
 
     /// Revoke a role
     pub fn revoke_role(env: Env, admin: Address, user: Address) {
         Self::check_admin(&env, &admin);
+
+        // Read old role for compliance log
+        let old_role: Option<Role> = env.storage().instance().get(&DataKey::Role(user.clone()));
+
         env.storage().instance().remove(&DataKey::Role(user.clone()));
         env.storage().instance().remove(&DataKey::Expiry(user.clone()));
 
         // Emit RoleRevoked event
-        env.events().publish((symbol_short!("role_rvk"), user), ());
+        env.events().publish((symbol_short!("role_rvk"), user.clone()), ());
+
+        // Compliance audit log – RoleRevoked (access control)
+        if ComplianceLogger::is_initialized(&env) {
+            let old_bytes = old_role
+                .map(|r| Bytes::from_slice(&env, &(r as u32).to_le_bytes()))
+                .unwrap_or(Bytes::new(&env));
+            let user_str: soroban_sdk::String = user.clone().to_string();
+            let target_bytes = Bytes::from_slice(&env, user_str.as_bytes());
+            ComplianceLogger::append(
+                &env,
+                admin.clone(),
+                ComplianceAction::RoleRevoked,
+                target_bytes,
+                old_bytes,
+                Bytes::new(&env),
+                BytesN::from_array(&env, &[0u8; 32]),
+            );
+        }
     }
 
     /// Set permission for a role

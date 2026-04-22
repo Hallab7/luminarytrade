@@ -4,6 +4,7 @@ import { CacheManager } from './cache-manager.service';
 import { CacheInvalidator } from './cache-invalidator.service';
 import { CacheMetricsService } from './cache-metrics.service';
 import { CacheController } from './cache.controller';
+import { MarketCacheService } from './market-cache.service';
 
 // Multi-level cache services
 import { L1CacheService } from './l1-cache.service';
@@ -23,10 +24,11 @@ import { CacheStatsService } from './cache-stats.service';
   controllers: [CacheController],
   providers: [
     // Standard cache services
-    CacheManager, 
-    CacheInvalidator, 
+    CacheManager,
+    CacheInvalidator,
     CacheMetricsService,
-    
+    MarketCacheService,
+
     // Multi-level cache services
     L1CacheService,
     L2CacheService,
@@ -35,10 +37,11 @@ import { CacheStatsService } from './cache-stats.service';
   ],
   exports: [
     // Standard cache services
-    CacheManager, 
-    CacheInvalidator, 
+    CacheManager,
+    CacheInvalidator,
     CacheMetricsService,
-    
+    MarketCacheService,
+
     // Multi-level cache services
     L1CacheService,
     L2CacheService,

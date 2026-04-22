@@ -83,6 +83,11 @@ export class IndexerService {
     return agent;
   }
 
+  /** Batch-load agents by IDs — used by DataLoader to avoid N+1 queries */
+  async findByIds(ids: string[]): Promise<Agent[]> {
+    return this.agentRepository.findBy({ id: In(ids) as any });
+  }
+
   @CacheInvalidate({
     rule: 'agent:performance-update',
     keys: (id: string) => [`agent:${id}`],

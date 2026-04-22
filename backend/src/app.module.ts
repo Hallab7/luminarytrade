@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
+import { ConfigModule as NestConfigModule } from '@nestjs/config';
+import { ConfigModule } from './config/config.module';
 import { BullModule } from '@nestjs/bull';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -28,13 +30,22 @@ const GraphqlApiModule = require('./graphql/graphql.module').GraphqlApiModule;
 const AnalyticsModule = require('./analytics/analytics.module').AnalyticsModule;
 import { GraphqlApiModule } from './graphql/graphql.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { LoggingModule } from './logging/logging.module';
+import { AlertingModule } from './alerting/alerting.module';
+import { GrowthModule } from './growth/growth.module';
+
+// i18n
+import { I18nModule } from './i18n/i18n.module';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
+    NestConfigModule.forRoot({
       isGlobal: true,
       validate,
     }),
+    ConfigModule,
     StartupModule,
     HealthModule,
     EventsModule,
@@ -50,6 +61,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
       useFactory: () => {
         const factory = new CacheConfigFactory();
         return factory.createConfig();
+<<<<<<< HEAD
     require('./tracing/tracing.module').TracingModule,
     require('./transaction/transaction.module').TransactionModule,
     require('./simulator/simulator.module').SimulatorModule,
@@ -66,10 +78,45 @@ import { AnalyticsModule } from './analytics/analytics.module';
     require('./decorator-composition/decorator-composition.module').DecoratorCompositionModule,
     require('./graphql/graphql.module').GraphqlApiModule,
     require('./analytics/analytics.module').AnalyticsModule,
+=======
+      },
+    }),
+
+    // i18n — must come before any module that uses I18nService
+    I18nModule,
+
+    // Observability Stack (order matters - tracing first)
+    TracingModule,
+    MetricsModule,
+    LoggingModule,
+    AlertingModule,
+
+    // Application Modules
+    TransactionModule,
+    SimulatorModule,
+    SubmitterModule,
+    ComputeBridgeModule,
+    IndexerModule,
+    AuditLogModule,
+    WorkerModule,
+    OracleModule,
+    RateLimitingModule,
+    AuthModule,
+    MaterializedViewsModule,
+    MiddlewarePipelineModule,
+    DecoratorCompositionModule,
+>>>>>>> 3a688f4b8d65b85eb8467d78fdd8af2d8811c2d4
     GraphqlApiModule,
     AnalyticsModule,
+    GrowthModule,
   ],
-  providers: [AppConfigService],
+  providers: [
+    AppConfigService,
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+  ],
   exports: [AppConfigService],
   controllers: [AppController],
 })

@@ -40,5 +40,6 @@ describe("ChenAIKit Frontend", () => {
 
     expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
     expect(screen.getByText(/Credit Scoring/i)).toBeInTheDocument();
+    expect(screen.getByText(/Growth Hub/i)).toBeInTheDocument();
   });
 });

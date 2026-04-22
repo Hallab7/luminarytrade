@@ -2,11 +2,14 @@
  * Dashboard.tsx
  *
  * Advanced data visualization dashboard with 5 interactive chart widgets,
- * time-window controls, summary statistics, and export capabilities.
+ * time-window controls, summary statistics, export capabilities,
+ * and real-time WebSocket data updates.
  */
 
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState } from 'react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { useRealtimeDashboard } from '../hooks/useRealtimeDashboard';
+import { useWebSocket } from '../context/WebSocketContext';
 import { FraudHeatmapCell, TimeWindow } from '../types/dashboard.types';
 import TimeWindowSelector from './dashboard/TimeWindowSelector';
 import CreditScoreTrendChart from './dashboard/CreditScoreTrendChart';
@@ -14,6 +17,8 @@ import FraudRiskHeatmap from './dashboard/FraudRiskHeatmap';
 import TransactionVolumeChart from './dashboard/TransactionVolumeChart';
 import AgentPerformanceChart from './dashboard/AgentPerformanceChart';
 import RiskDistributionChart from './dashboard/RiskDistributionChart';
+import ConnectionStatusBar from './dashboard/ConnectionStatusBar';
+import LiveAlertFeed from './dashboard/LiveAlertFeed';
 import { printDashboard } from '../utils/exportUtils';
 import { useResponsive } from '../hooks/useResponsive';
 import { spacing } from '../styles/theme';
@@ -142,8 +147,25 @@ const DrillDownModal: React.FC<DrillDownModalProps> = ({ cell, onClose }) => (
 
 const Dashboard: React.FC = () => {
   const { data, loading, error, timeWindow, setTimeWindow, refresh } = useDashboardData('7D');
+  const { summaryPatch, liveScorePoints, liveFraudCells, hasLiveData } = useRealtimeDashboard();
+  const { status, latency } = useWebSocket();
   const [drillDownCell, setDrillDownCell] = useState<FraudHeatmapCell | null>(null);
   const { isMobile, isTablet } = useResponsive();
+
+  // Merge live realtime patches on top of snapshot data
+  const mergedSummary = data
+    ? { ...data.summary, ...summaryPatch }
+    : null;
+
+  const mergedScoreTrend = [
+    ...liveScorePoints,
+    ...(data?.creditScoreTrend ?? []),
+  ].slice(0, 100);
+
+  const mergedFraudHeatmap = [
+    ...(data?.fraudHeatmap ?? []),
+    ...liveFraudCells,
+  ];
 
   return (
     <div style={{
@@ -179,7 +201,14 @@ const Dashboard: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {/* WebSocket status indicator */}
+          <ConnectionStatusBar
+            status={status}
+            latency={latency}
+            hasLiveData={hasLiveData}
+          />
+
           <TimeWindowSelector value={timeWindow} onChange={setTimeWindow} />
           <button
             data-testid="refresh-button"
@@ -236,7 +265,7 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Summary Statistics */}
-      {data && (
+      {mergedSummary && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -245,37 +274,37 @@ const Dashboard: React.FC = () => {
         }}>
           <StatCard
             label="Total Transactions"
-            value={data.summary.totalTransactions}
+            value={mergedSummary.totalTransactions}
             icon="📊"
             color="#6366f1"
-            trend={`Avg $${data.volumeStatistics.avg.toLocaleString()}`}
+            trend={`Avg $${data?.volumeStatistics.avg.toLocaleString() ?? '—'}`}
           />
           <StatCard
             label="Avg Credit Score"
-            value={data.summary.avgCreditScore}
+            value={mergedSummary.avgCreditScore}
             icon="📈"
             color="#22c55e"
-            trend={`Min ${data.scoreStatistics.min} · Max ${data.scoreStatistics.max}`}
+            trend={`Min ${data?.scoreStatistics.min ?? '—'} · Max ${data?.scoreStatistics.max ?? '—'}`}
           />
           <StatCard
             label="Fraud Alerts"
-            value={data.summary.fraudAlerts}
+            value={mergedSummary.fraudAlerts}
             icon="🛡"
             color="#f59e0b"
-            trend={`${data.riskDistribution.find((r) => r.name === 'Critical')?.value ?? 0}% critical`}
+            trend={`${data?.riskDistribution.find((r) => r.name === 'Critical')?.value ?? 0}% critical`}
           />
           <StatCard
             label="Active Agents"
-            value={data.summary.activeAgents}
+            value={mergedSummary.activeAgents}
             icon="🤖"
             color="#22d3ee"
           />
           <StatCard
             label="Risk Score"
-            value={`${data.summary.riskScore}%`}
+            value={`${mergedSummary.riskScore}%`}
             icon="⚡"
             color="#ef4444"
-            trend={`σ ${data.scoreStatistics.stddev}`}
+            trend={`σ ${data?.scoreStatistics.stddev ?? '—'}`}
           />
         </div>
       )}
@@ -291,7 +320,7 @@ const Dashboard: React.FC = () => {
         gap: spacing.lg,
       }}>
         <CreditScoreTrendChart
-          data={data?.creditScoreTrend ?? []}
+          data={mergedScoreTrend}
           loading={loading}
         />
         <TransactionVolumeChart
@@ -300,7 +329,7 @@ const Dashboard: React.FC = () => {
         />
         <div style={{ gridColumn: 'span 1' }}>
           <FraudRiskHeatmap
-            data={data?.fraudHeatmap ?? []}
+            data={mergedFraudHeatmap}
             loading={loading}
             onCellClick={(cell) => setDrillDownCell(cell)}
           />
@@ -315,6 +344,13 @@ const Dashboard: React.FC = () => {
             loading={loading}
           />
         </div>
+
+        {/* Live alert feed — full width, only shown when WS is active */}
+        {(status === 'connected' || hasLiveData) && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <LiveAlertFeed maxVisible={12} />
+          </div>
+        )}
       </div>
 
       {/* Drill-down Modal */}

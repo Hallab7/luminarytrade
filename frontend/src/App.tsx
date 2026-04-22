@@ -11,6 +11,7 @@ const CreditScoring = lazy(() => import("./components/CreditScoring"));
 const FraudDetection = lazy(() => import("./components/FraudDetection"));
 const WalletInterface = lazy(() => import("./components/WalletInterface"));
 const TransactionPage = lazy(() => import("./components/TransactionPage"));
+const GrowthHub = lazy(() => import("./components/GrowthHub"));
 const ResponsiveExamples = lazy(
   () => import("./components/examples/ResponsiveComponentExamples"),
 );
@@ -51,6 +52,11 @@ const App: React.FC = () => {
       to: "/transactions",
       label: "Transactions",
       prefetch: () => import("./components/TransactionPage"),
+    },
+    {
+      to: "/growth",
+      label: "Growth Hub",
+      prefetch: () => import("./components/GrowthHub"),
     },
     {
       to: "/responsive-examples",
@@ -137,6 +143,7 @@ const App: React.FC = () => {
               <Route path="/fraud" element={<FraudDetection />} />
               <Route path="/wallet" element={<WalletInterface />} />
               <Route path="/transactions" element={<TransactionPage />} />
+              <Route path="/growth" element={<GrowthHub />} />
             </Route>
             <Route
               path="/responsive-examples"

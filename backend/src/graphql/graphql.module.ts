@@ -14,6 +14,7 @@ import { AuditLogResolver } from './resolvers/audit-log.resolver';
 import { GraphqlPubSub } from './pubsub.service';
 import { GqlJwtAuthGuard } from './guards/gql-jwt-auth.guard';
 import { formatGraphqlError } from './graphql-error.formatter';
+import { DataLoaderService } from './dataloader.service';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { formatGraphqlError } from './graphql-error.formatter';
     AuditLogResolver,
     GraphqlPubSub,
     GqlJwtAuthGuard,
+    DataLoaderService,
   ],
 })
 export class GraphqlApiModule {}

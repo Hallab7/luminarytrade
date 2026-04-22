@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: luminarytrade-backend
+  namespace: luminarytrade
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: luminarytrade-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: luminarytrade-backend
+    spec:
+      serviceAccountName: luminarytrade-sa
+      containers:
+        - name: backend
+          image: luminarytrade/backend:latest
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secrets
+          livenessProbe:
+            httpGet:
+              path: /health/liveness
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 5

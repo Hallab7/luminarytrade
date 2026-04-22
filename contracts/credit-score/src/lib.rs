@@ -1,6 +1,7 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec, Bytes};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec, Bytes, BytesN};
 use common_utils::error::{AuthorizationError, StateError, ValidationError, ContractError};
+use common_utils::compliance_log::{ComplianceLogger, ComplianceAction};
 use common_utils::{rate_limit, rate_limit_adaptive};
 use common_utils::rate_limit::{RateLimiter, TrustTier};
 use common_utils::storage_optimization::{ScoreStorage, DataSeparator, DataTemperature};
@@ -308,9 +309,27 @@ impl CreditScoreContract {
 
         // 6. Log event
         env.events().publish(
-            (Symbol::new(&env, "score_updated"), user),
+            (Symbol::new(&env, "score_updated"), user.clone()),
             (new_score, env.ledger().timestamp()),
         );
+
+        // 7. Compliance audit log – CreditScoreComputed decision
+        if ComplianceLogger::is_initialized(&env) {
+            let old_bytes = Bytes::from_slice(&env, &current_score.to_le_bytes());
+            let new_bytes = Bytes::from_slice(&env, &new_score.to_le_bytes());
+            // Encode user address as UTF-8 Strkey string bytes
+            let user_str: soroban_sdk::String = user.clone().to_string();
+            let target_bytes = Bytes::from_slice(&env, user_str.as_bytes());
+            ComplianceLogger::append(
+                &env,
+                admin.clone(),
+                ComplianceAction::CreditScoreComputed,
+                target_bytes,
+                old_bytes,
+                new_bytes,
+                BytesN::from_array(&env, &[0u8; 32]),
+            );
+        }
 
         Ok(new_score)
     }

@@ -1,6 +1,5 @@
 import {
   Injectable,
-  Logger,
   Inject,
   Optional,
   ForbiddenException,
@@ -15,6 +14,8 @@ import {
 import { IEventBus } from "src/events";
 import { AuditLogCreatedEvent } from "src/pattern-aggregate/index (1)";
 import { AuditFilterDto, DateRange } from "./dto/audit-filter.dto";
+import { StructuredLoggerService } from "../logging/structured-logger.service";
+import { LogExecution } from "../logging/decorators/log-execution.decorator";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,11 +51,10 @@ export interface PaginatedAuditLogs {
 
 @Injectable()
 export class AuditLogService {
-  private readonly logger = new Logger(AuditLogService.name);
-
   constructor(
     @InjectRepository(AuditLogEntity)
     private readonly auditLogRepository: Repository<AuditLogEntity>,
+    private readonly logger: StructuredLoggerService,
     @Optional()
     @Inject("EventBus")
     private readonly eventBus?: IEventBus,
@@ -67,6 +67,7 @@ export class AuditLogService {
    * Fire-and-forget friendly: errors are caught and logged without bubbling.
    * Target: adds <5 ms to the calling operation.
    */
+  @LogExecution('AuditLogService.logAction')
   async logAction(params: LogActionParams): Promise<AuditLogEntity> {
     try {
       const entry = this.auditLogRepository.create({
@@ -90,7 +91,7 @@ export class AuditLogService {
 
       const saved = await this.auditLogRepository.save(entry);
 
-      this.logger.log(
+      this.logger.info(
         `Audit: ${params.action} | entity=${params.entityType ?? "-"}:${params.entityId ?? "-"} | user=${params.userId ?? params.wallet ?? "anon"}`,
       );
 
@@ -111,7 +112,7 @@ export class AuditLogService {
     } catch (error) {
       this.logger.error(
         `Failed to persist audit log: ${error.message}`,
-        error.stack,
+        error,
       );
       throw error;
     }

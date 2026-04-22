@@ -28,8 +28,9 @@ use common_utils::{
 };
 use common_utils::state_machine::{State, StateMachine, FraudDetectState};
 use common_utils::{state_guard, transition_to};
+use common_utils::compliance_log::{ComplianceLogger, ComplianceAction};
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Bytes, Env, String, Symbol,
+    contract, contractimpl, contracttype, symbol_short, Address, Bytes, BytesN, Env, String, Symbol,
     TryFromVal, Val, Vec,
 };
 
@@ -408,9 +409,29 @@ impl FraudDetectContract {
         StorageTracker::record_operation(&env, &symbol_short!("store"), &agent_id, 44, true);
 
         env.events().publish(
-            (symbol_short!("fraud_rpt"), agent_id),
-            (reporter, adjusted_score, env.ledger().timestamp()),
+            (symbol_short!("fraud_rpt"), agent_id.clone()),
+            (reporter.clone(), adjusted_score, env.ledger().timestamp()),
         );
+
+        // Compliance audit log – fraud report / flagging decision
+        if ComplianceLogger::is_initialized(&env) {
+            let score_bytes = Bytes::from_slice(&env, &adjusted_score.to_le_bytes());
+            let target_bytes = Bytes::from_slice(&env, agent_id.to_string().as_bytes());
+            let action = if adjusted_score >= 70 {
+                ComplianceAction::FraudFlagged
+            } else {
+                ComplianceAction::RiskEvaluated
+            };
+            ComplianceLogger::append(
+                &env,
+                reporter.clone(),
+                action,
+                target_bytes,
+                Bytes::new(&env),
+                score_bytes,
+                BytesN::from_array(&env, &[0u8; 32]),
+            );
+        }
 
         Ok(())
     }
