@@ -1,0 +1,48 @@
+{
+  "common": {
+    "success": "Opération effectuée avec succès",
+    "not_found": "Ressource introuvable",
+    "unauthorized": "Vous n'êtes pas autorisé à effectuer cette action",
+    "forbidden": "Accès refusé",
+    "bad_request": "Requête invalide",
+    "internal_error": "Une erreur interne s'est produite. Veuillez réessayer plus tard",
+    "validation_error": "La validation a échoué",
+    "conflict": "La ressource existe déjà"
+  },
+  "auth": {
+    "login_success": "Connexion réussie",
+    "login_failed": "Identifiants invalides",
+    "logout_success": "Déconnexion réussie",
+    "token_expired": "Votre session a expiré. Veuillez vous reconnecter",
+    "token_invalid": "Jeton invalide ou mal formé",
+    "mfa_required": "L'authentification multifacteur est requise",
+    "mfa_invalid": "Code MFA invalide. Veuillez réessayer",
+    "mfa_enabled": "L'authentification multifacteur a été activée",
+    "mfa_disabled": "L'authentification multifacteur a été désactivée",
+    "mfa_recovery_used": "Code de récupération utilisé. Veuillez reconfigurer le MFA",
+    "account_locked": "Votre compte a été verrouillé. Veuillez contacter le support"
+  },
+  "analytics": {
+    "not_found": "Données analytiques introuvables pour la fenêtre demandée",
+    "agent_not_found": "Agent {agentId} introuvable",
+    "invalid_window": "Fenêtre analytique invalide. Autorisées: 1min, 5min, 1hour, 24hour, 1day",
+    "invalid_optimization_target": "Cible d'optimisation invalide. Autorisées: max-sharpe, min-volatility, risk-parity",
+    "no_positions": "Aucune position ouverte trouvée pour l'agent {agentId}"
+  },
+  "oracle": {
+    "provider_not_found": "Fournisseur oracle {provider} introuvable",
+    "data_stale": "Les données oracle sont obsolètes et peuvent être inexactes"
+  },
+  "blockchain": {
+    "submission_failed": "La soumission à la blockchain a échoué",
+    "submission_success": "Transaction soumise avec succès",
+    "gas_estimate_failed": "Impossible d'estimer le gaz pour cette transaction"
+  },
+  "user": {
+    "not_found": "Utilisateur introuvable",
+    "created": "Utilisateur créé avec succès",
+    "updated": "Utilisateur mis à jour avec succès",
+    "deleted": "Utilisateur supprimé avec succès",
+    "rate_limited": "Trop de requêtes. Veuillez ralentir"
+  }
+}

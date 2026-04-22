@@ -1,0 +1,48 @@
+{
+  "common": {
+    "success": "Operation completed successfully",
+    "not_found": "Resource not found",
+    "unauthorized": "You are not authorized to perform this action",
+    "forbidden": "Access denied",
+    "bad_request": "Invalid request",
+    "internal_error": "An internal error occurred. Please try again later",
+    "validation_error": "Validation failed",
+    "conflict": "Resource already exists"
+  },
+  "auth": {
+    "login_success": "Login successful",
+    "login_failed": "Invalid credentials",
+    "logout_success": "Logged out successfully",
+    "token_expired": "Your session has expired. Please log in again",
+    "token_invalid": "Invalid or malformed token",
+    "mfa_required": "Multi-factor authentication is required",
+    "mfa_invalid": "Invalid MFA code. Please try again",
+    "mfa_enabled": "Multi-factor authentication has been enabled",
+    "mfa_disabled": "Multi-factor authentication has been disabled",
+    "mfa_recovery_used": "Recovery code used. Please set up MFA again",
+    "account_locked": "Your account has been locked. Please contact support"
+  },
+  "analytics": {
+    "not_found": "Analytics data not found for the requested window",
+    "agent_not_found": "Agent {agentId} not found",
+    "invalid_window": "Invalid analytics window. Allowed: 1min, 5min, 1hour, 24hour, 1day",
+    "invalid_optimization_target": "Invalid optimization target. Allowed: max-sharpe, min-volatility, risk-parity",
+    "no_positions": "No open positions found for agent {agentId}"
+  },
+  "oracle": {
+    "provider_not_found": "Oracle provider {provider} not found",
+    "data_stale": "Oracle data is stale and may be inaccurate"
+  },
+  "blockchain": {
+    "submission_failed": "Blockchain submission failed",
+    "submission_success": "Transaction submitted successfully",
+    "gas_estimate_failed": "Could not estimate gas for this transaction"
+  },
+  "user": {
+    "not_found": "User not found",
+    "created": "User created successfully",
+    "updated": "User updated successfully",
+    "deleted": "User deleted successfully",
+    "rate_limited": "Too many requests. Please slow down"
+  }
+}

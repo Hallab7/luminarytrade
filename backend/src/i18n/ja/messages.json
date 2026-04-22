@@ -1,0 +1,48 @@
+{
+  "common": {
+    "success": "操作が正常に完了しました",
+    "not_found": "リソースが見つかりません",
+    "unauthorized": "この操作を実行する権限がありません",
+    "forbidden": "アクセスが拒否されました",
+    "bad_request": "無効なリクエストです",
+    "internal_error": "内部エラーが発生しました。後でもう一度お試しください",
+    "validation_error": "バリデーションに失敗しました",
+    "conflict": "リソースはすでに存在します"
+  },
+  "auth": {
+    "login_success": "ログインに成功しました",
+    "login_failed": "認証情報が無効です",
+    "logout_success": "正常にログアウトしました",
+    "token_expired": "セッションの有効期限が切れました。再度ログインしてください",
+    "token_invalid": "無効または不正なトークンです",
+    "mfa_required": "多要素認証が必要です",
+    "mfa_invalid": "MFAコードが無効です。もう一度お試しください",
+    "mfa_enabled": "多要素認証が有効になりました",
+    "mfa_disabled": "多要素認証が無効になりました",
+    "mfa_recovery_used": "リカバリーコードが使用されました。MFAを再設定してください",
+    "account_locked": "アカウントがロックされました。サポートにお問い合わせください"
+  },
+  "analytics": {
+    "not_found": "要求されたウィンドウの分析データが見つかりません",
+    "agent_not_found": "エージェント {agentId} が見つかりません",
+    "invalid_window": "無効な分析ウィンドウです。許可値: 1min, 5min, 1hour, 24hour, 1day",
+    "invalid_optimization_target": "無効な最適化ターゲットです。許可値: max-sharpe, min-volatility, risk-parity",
+    "no_positions": "エージェント {agentId} のオープンポジションが見つかりません"
+  },
+  "oracle": {
+    "provider_not_found": "オラクルプロバイダー {provider} が見つかりません",
+    "data_stale": "オラクルデータが古くなっており、不正確な可能性があります"
+  },
+  "blockchain": {
+    "submission_failed": "ブロックチェーンへの送信に失敗しました",
+    "submission_success": "トランザクションが正常に送信されました",
+    "gas_estimate_failed": "このトランザクションのガスを見積もれませんでした"
+  },
+  "user": {
+    "not_found": "ユーザーが見つかりません",
+    "created": "ユーザーが正常に作成されました",
+    "updated": "ユーザーが正常に更新されました",
+    "deleted": "ユーザーが正常に削除されました",
+    "rate_limited": "リクエストが多すぎます。少し待ってください"
+  }
+}

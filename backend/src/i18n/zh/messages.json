@@ -1,0 +1,48 @@
+{
+  "common": {
+    "success": "操作成功完成",
+    "not_found": "资源未找到",
+    "unauthorized": "您无权执行此操作",
+    "forbidden": "访问被拒绝",
+    "bad_request": "无效请求",
+    "internal_error": "发生内部错误，请稍后再试",
+    "validation_error": "验证失败",
+    "conflict": "资源已存在"
+  },
+  "auth": {
+    "login_success": "登录成功",
+    "login_failed": "凭据无效",
+    "logout_success": "成功退出登录",
+    "token_expired": "您的会话已过期，请重新登录",
+    "token_invalid": "令牌无效或格式错误",
+    "mfa_required": "需要多因素认证",
+    "mfa_invalid": "MFA代码无效，请重试",
+    "mfa_enabled": "多因素认证已启用",
+    "mfa_disabled": "多因素认证已禁用",
+    "mfa_recovery_used": "恢复码已使用，请重新设置MFA",
+    "account_locked": "您的账户已被锁定，请联系支持团队"
+  },
+  "analytics": {
+    "not_found": "未找到所请求时间窗口的分析数据",
+    "agent_not_found": "未找到代理 {agentId}",
+    "invalid_window": "无效的分析时间窗口。允许值: 1min, 5min, 1hour, 24hour, 1day",
+    "invalid_optimization_target": "无效的优化目标。允许值: max-sharpe, min-volatility, risk-parity",
+    "no_positions": "未找到代理 {agentId} 的未平仓头寸"
+  },
+  "oracle": {
+    "provider_not_found": "未找到Oracle提供商 {provider}",
+    "data_stale": "Oracle数据已过时，可能不准确"
+  },
+  "blockchain": {
+    "submission_failed": "区块链提交失败",
+    "submission_success": "交易提交成功",
+    "gas_estimate_failed": "无法估算此交易的Gas费用"
+  },
+  "user": {
+    "not_found": "用户未找到",
+    "created": "用户创建成功",
+    "updated": "用户更新成功",
+    "deleted": "用户删除成功",
+    "rate_limited": "请求过于频繁，请稍慢一些"
+  }
+}

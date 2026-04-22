@@ -5,26 +5,27 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { SimulatorModule } from './simulator/simulator.module';
 import { SubmitterModule } from './submitter/submitter.module';
-import { ComputeBridgeModule } from './compute-bridge/compute-bridge.module';
-import { IndexerModule } from './agent/agent.module';
-import { AuditLogModule } from './audit/audit-log.module';
-import { WorkerModule } from './worker/worker.module';
-import { OracleModule } from './oracle/oracle.module';
-import { TransactionModule } from './transaction/transaction.module';
-import { RateLimitingModule } from './rate-limiting/rate-limiting.module';
-import { TracingModule } from './tracing/tracing.module';
-import { AuthModule } from './auth/auth.module';
-import { StartupModule } from './startup/startup.module';
-import { MaterializedViewsModule } from './materialized-view/materialized-view.module';
-import { DatabaseConfigFactory } from './config/database.factory';
-import { CacheConfigFactory } from './config/cache.factory';
-import { PluginsModule } from './plugins/plugins.module';
-import { validate } from './config/config.validation';
-import { AppConfigService } from './config/app-config.service';
-import { MiddlewarePipelineModule } from './middleware-pipeline/middleware-pipeline.module';
-import { DecoratorCompositionModule } from './decorator-composition/decorator-composition.module';
-import { HealthModule } from './health/health.module';
-import { EventsModule } from './events/events.module';
+// Heavy modules will be loaded dynamically below for code splitting
+const SimulatorModule = require('./simulator/simulator.module').SimulatorModule;
+const SubmitterModule = require('./submitter/submitter.module').SubmitterModule;
+const ComputeBridgeModule = require('./compute-bridge/compute-bridge.module').ComputeBridgeModule;
+const IndexerModule = require('./agent/agent.module').IndexerModule;
+const AuditLogModule = require('./audit/audit-log.module').AuditLogModule;
+const WorkerModule = require('./worker/worker.module').WorkerModule;
+const OracleModule = require('./oracle/oracle.module').OracleModule;
+const TransactionModule = require('./transaction/transaction.module').TransactionModule;
+const RateLimitingModule = require('./rate-limiting/rate-limiting.module').RateLimitingModule;
+const TracingModule = require('./tracing/tracing.module').TracingModule;
+const AuthModule = require('./auth/auth.module').AuthModule;
+const StartupModule = require('./startup/startup.module').StartupModule;
+const MaterializedViewsModule = require('./materialized-view/materialized-view.module').MaterializedViewsModule;
+const PluginsModule = require('./plugins/plugins.module').PluginsModule;
+const MiddlewarePipelineModule = require('./middleware-pipeline/middleware-pipeline.module').MiddlewarePipelineModule;
+const DecoratorCompositionModule = require('./decorator-composition/decorator-composition.module').DecoratorCompositionModule;
+const HealthModule = require('./health/health.module').HealthModule;
+const EventsModule = require('./events/events.module').EventsModule;
+const GraphqlApiModule = require('./graphql/graphql.module').GraphqlApiModule;
+const AnalyticsModule = require('./analytics/analytics.module').AnalyticsModule;
 import { GraphqlApiModule } from './graphql/graphql.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 
@@ -49,22 +50,22 @@ import { AnalyticsModule } from './analytics/analytics.module';
       useFactory: () => {
         const factory = new CacheConfigFactory();
         return factory.createConfig();
-      },
-    }),
-    TracingModule,
-    TransactionModule,
-    SimulatorModule,
-    SubmitterModule,
-    ComputeBridgeModule,
-    IndexerModule,
-    AuditLogModule,
-    WorkerModule,
-    OracleModule,
-    RateLimitingModule,
-    AuthModule,
-    MaterializedViewsModule,
-    MiddlewarePipelineModule,
-    DecoratorCompositionModule,
+    require('./tracing/tracing.module').TracingModule,
+    require('./transaction/transaction.module').TransactionModule,
+    require('./simulator/simulator.module').SimulatorModule,
+    require('./submitter/submitter.module').SubmitterModule,
+    require('./compute-bridge/compute-bridge.module').ComputeBridgeModule,
+    require('./agent/agent.module').IndexerModule,
+    require('./audit/audit-log.module').AuditLogModule,
+    require('./worker/worker.module').WorkerModule,
+    require('./oracle/oracle.module').OracleModule,
+    require('./rate-limiting/rate-limiting.module').RateLimitingModule,
+    require('./auth/auth.module').AuthModule,
+    require('./materialized-view/materialized-view.module').MaterializedViewsModule,
+    require('./middleware-pipeline/middleware-pipeline.module').MiddlewarePipelineModule,
+    require('./decorator-composition/decorator-composition.module').DecoratorCompositionModule,
+    require('./graphql/graphql.module').GraphqlApiModule,
+    require('./analytics/analytics.module').AnalyticsModule,
     GraphqlApiModule,
     AnalyticsModule,
   ],

@@ -1,0 +1,48 @@
+{
+  "common": {
+    "success": "Operación completada con éxito",
+    "not_found": "Recurso no encontrado",
+    "unauthorized": "No tienes autorización para realizar esta acción",
+    "forbidden": "Acceso denegado",
+    "bad_request": "Solicitud inválida",
+    "internal_error": "Ocurrió un error interno. Por favor, inténtalo de nuevo más tarde",
+    "validation_error": "La validación falló",
+    "conflict": "El recurso ya existe"
+  },
+  "auth": {
+    "login_success": "Inicio de sesión exitoso",
+    "login_failed": "Credenciales inválidas",
+    "logout_success": "Sesión cerrada correctamente",
+    "token_expired": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo",
+    "token_invalid": "Token inválido o mal formado",
+    "mfa_required": "Se requiere autenticación multifactor",
+    "mfa_invalid": "Código MFA inválido. Por favor, inténtalo de nuevo",
+    "mfa_enabled": "La autenticación multifactor ha sido activada",
+    "mfa_disabled": "La autenticación multifactor ha sido desactivada",
+    "mfa_recovery_used": "Código de recuperación utilizado. Por favor, configura MFA de nuevo",
+    "account_locked": "Tu cuenta ha sido bloqueada. Por favor, contacta con soporte"
+  },
+  "analytics": {
+    "not_found": "Datos analíticos no encontrados para la ventana solicitada",
+    "agent_not_found": "Agente {agentId} no encontrado",
+    "invalid_window": "Ventana analítica inválida. Permitidos: 1min, 5min, 1hour, 24hour, 1day",
+    "invalid_optimization_target": "Objetivo de optimización inválido. Permitidos: max-sharpe, min-volatility, risk-parity",
+    "no_positions": "No se encontraron posiciones abiertas para el agente {agentId}"
+  },
+  "oracle": {
+    "provider_not_found": "Proveedor de oráculo {provider} no encontrado",
+    "data_stale": "Los datos del oráculo están desactualizados y pueden ser inexactos"
+  },
+  "blockchain": {
+    "submission_failed": "El envío a la blockchain falló",
+    "submission_success": "Transacción enviada con éxito",
+    "gas_estimate_failed": "No se pudo estimar el gas para esta transacción"
+  },
+  "user": {
+    "not_found": "Usuario no encontrado",
+    "created": "Usuario creado con éxito",
+    "updated": "Usuario actualizado con éxito",
+    "deleted": "Usuario eliminado con éxito",
+    "rate_limited": "Demasiadas solicitudes. Por favor, reduce la velocidad"
+  }
+}
