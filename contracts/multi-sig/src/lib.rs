@@ -55,6 +55,9 @@ pub enum DataKey {
     
     // Operation-specific thresholds
     OperationThreshold(OperationType),
+    
+    // Waitlist
+    Waitlist(Address),
 }
 
 // ============================================================================
@@ -101,6 +104,15 @@ pub enum ProposalStatus {
     Cancelled = 3,
     /// Proposal has expired
     Expired = 4,
+}
+
+/// Waitlist status for beta access
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[contracttype]
+pub enum WaitlistStatus {
+    Pending = 0,
+    Approved = 1,
+    Rejected = 2,
 }
 
 /// A multi-sig proposal
@@ -694,6 +706,53 @@ impl MultiSignatureContract {
     /// Get execution record for a proposal
     pub fn get_execution_record(env: Env, proposal_id: u32) -> Option<ExecutionRecord> {
         env.storage().persistent().get(&DataKey::ExecutedProposal(proposal_id))
+    }
+
+    /// Join the beta waitlist
+    pub fn join_waitlist(env: Env, user: Address) -> Result<(), CommonError> {
+        user.require_auth();
+        
+        if env.storage().persistent().has(&DataKey::Waitlist(user.clone())) {
+            return Err(CommonError::AlreadyInitialized);
+        }
+        
+        env.storage().persistent().set(&DataKey::Waitlist(user.clone()), &WaitlistStatus::Pending);
+        
+        env.events().publish(
+            (symbol_short!("wl_join"),),
+            user,
+        );
+        
+        Ok(())
+    }
+
+    /// Approve a user on the waitlist
+    pub fn approve_waitlist(env: Env, admin: Address, user: Address) -> Result<(), CommonError> {
+        admin.require_auth();
+        
+        // Admin must be a valid signer
+        Self::check_signer(&env, &admin)?;
+        
+        if !env.storage().persistent().has(&DataKey::Waitlist(user.clone())) {
+            return Err(CommonError::KeyNotFound);
+        }
+        
+        env.storage().persistent().set(&DataKey::Waitlist(user.clone()), &WaitlistStatus::Approved);
+        
+        env.events().publish(
+            (symbol_short!("wl_appr"),),
+            user,
+        );
+        
+        Ok(())
+    }
+
+    /// Check if a user is approved on the waitlist
+    pub fn is_waitlist_approved(env: Env, user: Address) -> bool {
+        if let Some(status) = env.storage().persistent().get::<_, WaitlistStatus>(&DataKey::Waitlist(user)) {
+            return status == WaitlistStatus::Approved;
+        }
+        false
     }
 
     // ========================================================================
