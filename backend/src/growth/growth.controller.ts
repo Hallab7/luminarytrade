@@ -3,6 +3,8 @@ import { GovernanceReferralService } from './governance-referral.service';
 import { BonusMultiplierService } from './bonus-multiplier.service';
 import { AffiliateService } from './affiliate.service';
 import { WaitlistService, WaitlistTier } from './waitlist.service';
+import { BugReportService } from './bug-report.service';
+import { CreateBugReportDto, VerifyBugReportDto } from './dto/bug-report.dto';
 
 @Controller('growth')
 export class GrowthController {
@@ -11,6 +13,7 @@ export class GrowthController {
     private readonly multiplier: BonusMultiplierService,
     private readonly affiliate: AffiliateService,
     private readonly waitlist: WaitlistService,
+    private readonly bugReport: BugReportService,
   ) {}
 
   @Post('governance/referral')
@@ -31,5 +34,36 @@ export class GrowthController {
   @Post('waitlist')
   async joinWaitlist(@Body() body: { userId: string; tier: WaitlistTier }) {
     return this.waitlist.joinWaitlist(body.userId, body.tier);
+  }
+
+  // Bug Report Bonuses Endpoints
+  @Post('bug-report')
+  async submitBugReport(@Body() body: CreateBugReportDto) {
+    return this.bugReport.submitBugReport(body);
+  }
+
+  @Post('bug-report/verify')
+  async verifyBugReport(@Body() body: VerifyBugReportDto) {
+    return this.bugReport.verifyBugReport(body);
+  }
+
+  @Get('bug-report/:reportId')
+  async getBugReport(@Param('reportId') reportId: string) {
+    return this.bugReport.getBugReport(reportId);
+  }
+
+  @Get('bug-report/user/:userId')
+  async getUserBugReports(@Param('userId') userId: string) {
+    return this.bugReport.getUserBugReports(userId);
+  }
+
+  @Get('bug-report/bonus/:userId')
+  async getUserBonusBalance(@Param('userId') userId: string) {
+    return { userId, bonusBalance: await this.bugReport.getUserBonusBalance(userId) };
+  }
+
+  @Get('bug-reports')
+  async getAllBugReports() {
+    return this.bugReport.getAllBugReports();
   }
 }
