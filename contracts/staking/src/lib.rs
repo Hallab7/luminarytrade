@@ -96,6 +96,12 @@ pub enum DataKey {
     // Governance
     GovernanceConfig,
     MultiSigContract,
+    
+    // Bonus Multipliers for Active Stakers
+    GovernanceParticipation(Address),
+    MonthlyMultiplier(Address, u64),
+    MultiplierConfig,
+    LastMultiplierReset,
 }
 
 // ============================================================================
@@ -230,6 +236,38 @@ pub struct GovernanceConfig {
     pub min_accuracy_percent: u32,
 }
 
+/// Governance participation tracking
+#[derive(Clone)]
+#[contracttype]
+pub struct GovernanceParticipation {
+    /// Oracle address
+    pub oracle: Address,
+    /// Total votes participated
+    pub total_votes: u32,
+    /// Votes in current month
+    pub monthly_votes: u32,
+    /// Last vote timestamp
+    pub last_vote_at: u64,
+    /// Consecutive months participated
+    pub consecutive_months: u32,
+}
+
+/// Multiplier configuration
+#[derive(Clone)]
+#[contracttype]
+pub struct MultiplierConfig {
+    /// Base multiplier (10000 = 1.0x)
+    pub base_multiplier: u32,
+    /// Bonus per vote in basis points (100 = 0.01x)
+    pub per_vote_bonus_bps: u32,
+    /// Monthly participation bonus (consecutive months)
+    pub monthly_bonus_bps: u32,
+    /// Maximum multiplier (e.g., 30000 = 3.0x)
+    pub max_multiplier: u32,
+    /// Month duration in seconds (30 days)
+    pub month_duration: u64,
+}
+
 /// Stake leaderboard with pagination
 #[derive(Clone)]
 #[contracttype]
@@ -269,6 +307,13 @@ const QUALITY_BONUS_BPS: u32 = 1000; // 10%
 const ACCURACY_HIGH: u32 = 99; // 99%
 const ACCURACY_LOW: u32 = 95; // 95%
 const PENALTY_BPS: u32 = 2000; // 20%
+
+// Bonus Multiplier Constants
+const BASE_MULTIPLIER: u32 = 10000; // 1.0x
+const PER_VOTE_BONUS_BPS: u32 = 100; // 0.01x per vote
+const MONTHLY_BONUS_BPS: u32 = 500; // 0.05x per consecutive month
+const MAX_MULTIPLIER: u32 = 30000; // 3.0x maximum
+const MONTH_DURATION: u64 = 30 * SECONDS_PER_DAY; // 30 days
 
 // ============================================================================
 // Contract
@@ -340,6 +385,17 @@ impl StakingContract {
             min_accuracy_percent: 90,
         };
         env.storage().instance().set(&DataKey::GovernanceConfig, &gov_config);
+        
+        // Initialize multiplier config
+        let multiplier_config = MultiplierConfig {
+            base_multiplier: BASE_MULTIPLIER,
+            per_vote_bonus_bps: PER_VOTE_BONUS_BPS,
+            monthly_bonus_bps: MONTHLY_BONUS_BPS,
+            max_multiplier: MAX_MULTIPLIER,
+            month_duration: MONTH_DURATION,
+        };
+        env.storage().instance().set(&DataKey::MultiplierConfig, &multiplier_config);
+        env.storage().instance().set(&DataKey::LastMultiplierReset, &0u64);
         
         // Mark as initialized
         env.storage().instance().set(&DataKey::Initialized, &true);
@@ -1116,6 +1172,157 @@ impl StakingContract {
         Ok(())
     }
 
+    /// Record governance participation (voting)
+    /// 
+    /// # Arguments
+    /// 
+    /// * `env` - Soroban environment
+    /// * `oracle` - Oracle address who voted
+    /// * `proposal_id` - Proposal ID voted on
+    pub fn record_governance_participation(
+        env: Env,
+        oracle: Address,
+        proposal_id: u64,
+    ) -> Result<(), CommonError> {
+        oracle.require_auth();
+        
+        // Check if oracle is staked
+        if !env.storage().persistent().has(&DataKey::StakeInfo(oracle.clone())) {
+            return Err(CommonError::KeyNotFound);
+        }
+        
+        let current_time = env.ledger().timestamp();
+        
+        // Get or create participation record
+        let mut participation: GovernanceParticipation = env
+            .storage()
+            .persistent()
+            .get(&DataKey::GovernanceParticipation(oracle.clone()))
+            .unwrap_or_else(|| GovernanceParticipation {
+                oracle: oracle.clone(),
+                total_votes: 0,
+                monthly_votes: 0,
+                last_vote_at: 0,
+                consecutive_months: 0,
+            });
+        
+        // Check if this is a new month
+        let config: MultiplierConfig = env.storage().instance().get(&DataKey::MultiplierConfig).unwrap();
+        let last_reset: u64 = env.storage().instance().get(&DataKey::LastMultiplierReset).unwrap_or(0);
+        let months_elapsed = (current_time - last_reset) / config.month_duration;
+        
+        if months_elapsed > 0 || participation.last_vote_at == 0 {
+            // New month - check if consecutive
+            if participation.last_vote_at > 0 {
+                let time_since_last_vote = current_time - participation.last_vote_at;
+                if time_since_last_vote <= config.month_duration * 2 {
+                    // Voted within 2 months - consecutive
+                    participation.consecutive_months += 1;
+                } else {
+                    // Gap too large - reset consecutive count
+                    participation.consecutive_months = 1;
+                }
+            } else {
+                participation.consecutive_months = 1;
+            }
+            
+            // Reset monthly votes
+            participation.monthly_votes = 0;
+            
+            // Update last reset
+            env.storage().instance().set(&DataKey::LastMultiplierReset, &current_time);
+        }
+        
+        // Update participation
+        participation.total_votes += 1;
+        participation.monthly_votes += 1;
+        participation.last_vote_at = current_time;
+        
+        env.storage().persistent().set(&DataKey::GovernanceParticipation(oracle.clone()), &participation);
+        
+        // Calculate and store multiplier
+        let multiplier = Self::calculate_multiplier(&env, &oracle)?;
+        env.storage().persistent().set(&DataKey::MonthlyMultiplier(oracle.clone(), current_time / config.month_duration), &multiplier);
+        
+        // Emit event
+        env.events().publish(
+            (symbol_short!("gov_part"), oracle),
+            (proposal_id, participation.total_votes, multiplier),
+        );
+        
+        Ok(())
+    }
+    
+    /// Calculate current multiplier for an oracle
+    /// 
+    /// # Arguments
+    /// 
+    /// * `env` - Soroban environment
+    /// * `oracle` - Oracle address
+    /// 
+    /// # Returns
+    /// 
+    /// * `u32` - Multiplier in basis points (10000 = 1.0x)
+    pub fn get_multiplier(env: Env, oracle: Address) -> Result<u32, CommonError> {
+        Self::calculate_multiplier(&env, &oracle)
+    }
+    
+    /// Get governance participation stats
+    /// 
+    /// # Arguments
+    /// 
+    /// * `env` - Soroban environment
+    /// * `oracle` - Oracle address
+    /// 
+    /// # Returns
+    /// 
+    /// * `GovernanceParticipation` - Participation statistics
+    pub fn get_governance_participation(env: Env, oracle: Address) -> GovernanceParticipation {
+        env.storage()
+            .persistent()
+            .get(&DataKey::GovernanceParticipation(oracle))
+            .unwrap_or_else(|| GovernanceParticipation {
+                oracle: Address::generate(&env),
+                total_votes: 0,
+                monthly_votes: 0,
+                last_vote_at: 0,
+                consecutive_months: 0,
+            })
+    }
+    
+    /// Update multiplier configuration (admin only)
+    /// 
+    /// # Arguments
+    /// 
+    /// * `env` - Soroban environment
+    /// * `admin` - Admin address
+    /// * `config` - New multiplier configuration
+    pub fn update_multiplier_config(
+        env: Env,
+        admin: Address,
+        config: MultiplierConfig,
+    ) -> Result<(), CommonError> {
+        Self::require_admin(&env, &admin)?;
+        
+        // Validate configuration
+        if config.base_multiplier < 10000 || config.base_multiplier > config.max_multiplier {
+            return Err(CommonError::OutOfRange);
+        }
+        
+        if config.max_multiplier > 50000 { // Max 5.0x
+            return Err(CommonError::OutOfRange);
+        }
+        
+        env.storage().instance().set(&DataKey::MultiplierConfig, &config);
+        
+        env.events().publish(
+            (symbol_short!("mult_upd"), admin),
+            symbol_short!("updated"),
+        );
+        
+        Ok(())
+    }
+
     // ========================================================================
     // Internal Helper Functions
     // ========================================================================
@@ -1169,6 +1376,12 @@ impl StakingContract {
             OracleTier::Platinum => 3000, // 30%
         };
         rewards = rewards + (rewards * tier_bonus as i128) / 10000;
+        
+        // Apply governance participation multiplier
+        let multiplier = Self::calculate_multiplier(env, oracle)?;
+        if multiplier > 10000 { // Only apply if greater than 1.0x
+            rewards = rewards + (rewards * (multiplier - 10000) as i128) / 10000;
+        }
         
         // Apply quality bonus/penalty based on recent submissions
         let total_submissions = stake_info.accurate_submissions + stake_info.inaccurate_submissions;
@@ -1282,5 +1495,40 @@ impl StakingContract {
         
         admin.require_auth();
         Ok(())
+    }
+    
+    /// Calculate multiplier based on governance participation
+    fn calculate_multiplier(env: &Env, oracle: &Address) -> Result<u32, CommonError> {
+        let config: MultiplierConfig = env.storage().instance().get(&DataKey::MultiplierConfig).unwrap();
+        
+        let participation: GovernanceParticipation = env
+            .storage()
+            .persistent()
+            .get(&DataKey::GovernanceParticipation(oracle.clone()))
+            .unwrap_or_else(|| GovernanceParticipation {
+                oracle: oracle.clone(),
+                total_votes: 0,
+                monthly_votes: 0,
+                last_vote_at: 0,
+                consecutive_months: 0,
+            });
+        
+        // Start with base multiplier
+        let mut multiplier = config.base_multiplier;
+        
+        // Add bonus for monthly votes
+        let vote_bonus = participation.monthly_votes * config.per_vote_bonus_bps;
+        multiplier += vote_bonus;
+        
+        // Add bonus for consecutive months
+        let monthly_bonus = participation.consecutive_months * config.monthly_bonus_bps;
+        multiplier += monthly_bonus;
+        
+        // Cap at maximum
+        if multiplier > config.max_multiplier {
+            multiplier = config.max_multiplier;
+        }
+        
+        Ok(multiplier)
     }
 }
