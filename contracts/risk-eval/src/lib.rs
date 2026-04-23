@@ -10,6 +10,9 @@ use common_utils::{permission, auth, cached_auth, check_authorization, verify_si
 use common_utils::state_machine::{State, StateMachine, RiskEvalState};
 use common_utils::{state_guard, transition_to};
 
+mod oracle_cache;
+pub use oracle_cache::OracleCache;
+
 /// -------------------------
 /// Storage Keys
 /// -------------------------
