@@ -152,6 +152,7 @@ pub fn finalize_proposal(env: &Env, proposal_id: u64) -> Result<ProposalStatus, 
 
     let new_status = if quorum_met && majority_met {
         proposal.winning_option = Some(winning_option);
+        proposal.deposit_refunded = true;
         ProposalStatus::Succeeded
     } else {
         ProposalStatus::Defeated

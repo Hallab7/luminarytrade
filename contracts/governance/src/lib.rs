@@ -72,6 +72,10 @@ pub enum ConfigKey {
     SupermajorityBps,
     /// Minimum stake required to create a proposal
     MinStakeToPropose,
+    /// Minimum required proposal deposit for waitlisted submissions
+    ProposalDepositRequired,
+    /// Number of community approvals required to activate a waitlisted proposal
+    ProposalWaitlistThreshold,
 }
 
 // ============================================================================
@@ -102,6 +106,8 @@ pub struct ProposalParams {
     pub whitelist: Vec<Address>,
     /// Optional voter blacklist
     pub blacklist: Vec<Address>,
+    /// Deposit attached to proposal submission
+    pub proposal_deposit: i128,
 }
 
 // ============================================================================
@@ -116,6 +122,8 @@ const DEFAULT_QUORUM_BPS: u32 = 1000; // 10%
 const DEFAULT_MAJORITY_BPS: u32 = 5001; // >50%
 const SUPERMAJORITY_BPS: u32 = 6600; // >66%
 const MIN_STAKE_TO_PROPOSE: i128 = 1_000_000_000; // 1000 tokens (6 decimals)
+const PROPOSAL_DEPOSIT_REQUIRED: i128 = 100_000_000; // 100 tokens (6 decimals)
+const PROPOSAL_WAITLIST_THRESHOLD: u32 = 3;
 
 // ============================================================================
 // Contract
@@ -158,6 +166,12 @@ impl GovernanceContract {
         env.storage()
             .instance()
             .set(&ConfigKey::MinStakeToPropose, &MIN_STAKE_TO_PROPOSE);
+        env.storage()
+            .instance()
+            .set(&ConfigKey::ProposalDepositRequired, &PROPOSAL_DEPOSIT_REQUIRED);
+        env.storage()
+            .instance()
+            .set(&ConfigKey::ProposalWaitlistThreshold, &PROPOSAL_WAITLIST_THRESHOLD);
         env.storage().instance().set(&ConfigKey::Initialized, &true);
 
         env.events()
@@ -182,6 +196,18 @@ impl GovernanceContract {
         proposer.require_auth();
 
         if params.options_count < 2 {
+            return Err(GovernanceError::InvalidParameter);
+        }
+        if params.min_stake_to_vote < 0 || params.proposal_deposit < 0 {
+            return Err(GovernanceError::InvalidParameter);
+        }
+
+        let required_deposit: i128 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::ProposalDepositRequired)
+            .unwrap_or(PROPOSAL_DEPOSIT_REQUIRED);
+        if params.proposal_deposit < required_deposit {
             return Err(GovernanceError::InvalidParameter);
         }
 
@@ -228,9 +254,14 @@ impl GovernanceContract {
             .unwrap_or(DEFAULT_EXPIRY_WINDOW);
 
         let now = env.ledger().timestamp();
-        let voting_end = now + vp;
-        let execution_after = voting_end + gp;
-        let expires_at = execution_after + expiry_window;
+        let waitlist_threshold: u32 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::ProposalWaitlistThreshold)
+            .unwrap_or(PROPOSAL_WAITLIST_THRESHOLD);
+        let voting_end = now;
+        let execution_after = now;
+        let expires_at = now + expiry_window;
 
         let id = next_proposal_id(&env);
 
@@ -243,15 +274,21 @@ impl GovernanceContract {
             vote_type: params.vote_type,
             options_count: params.options_count,
             min_stake_to_vote: params.min_stake_to_vote,
-            voting_start: now,
+            voting_start: 0,
             voting_end,
+            voting_period: vp,
             execution_after,
+            grace_period: gp,
             expires_at,
             quorum_bps: q_bps,
             majority_bps: m_bps,
-            status: ProposalStatus::Active,
+            status: ProposalStatus::Waitlisted,
             winning_option: None,
             total_votes: 0,
+            proposal_deposit: params.proposal_deposit,
+            deposit_refunded: false,
+            waitlist_approvals: 0,
+            waitlist_threshold,
         };
 
         save_proposal(&env, &proposal);
@@ -273,6 +310,45 @@ impl GovernanceContract {
         );
 
         Ok(id)
+    }
+
+    /// Community approval for a waitlisted proposal.
+    /// Once threshold is reached, proposal becomes active and voting opens.
+    pub fn approve_waitlisted(
+        env: Env,
+        approver: Address,
+        proposal_id: u64,
+    ) -> Result<ProposalStatus, VotingError> {
+        approver.require_auth();
+        let mut proposal = load_proposal(&env, proposal_id).ok_or(VotingError::ProposalNotFound)?;
+        if proposal.status != ProposalStatus::Waitlisted {
+            return Err(VotingError::VotingNotOpen);
+        }
+        if proposal::has_waitlist_approved(&env, proposal_id, &approver) {
+            return Err(VotingError::AlreadyVoted);
+        }
+
+        proposal::mark_waitlist_approval(&env, proposal_id, &approver);
+        proposal.waitlist_approvals += 1;
+
+        if proposal.waitlist_approvals >= proposal.waitlist_threshold {
+            let now = env.ledger().timestamp();
+            let expiry_window: u64 = env
+                .storage()
+                .instance()
+                .get(&ConfigKey::DefaultExpiryWindow)
+                .unwrap_or(DEFAULT_EXPIRY_WINDOW);
+
+            proposal.status = ProposalStatus::Active;
+            proposal.voting_start = now;
+            proposal.voting_end = now + proposal.voting_period;
+            proposal.execution_after = proposal.voting_end + proposal.grace_period;
+            proposal.expires_at = proposal.execution_after + expiry_window;
+        }
+
+        let status = proposal.status;
+        save_proposal(&env, &proposal);
+        Ok(status)
     }
 
     // -------------------------------------------------------------------------
@@ -375,6 +451,13 @@ impl GovernanceContract {
     /// Get a proposal by ID.
     pub fn get_proposal(env: Env, proposal_id: u64) -> Option<Proposal> {
         load_proposal(&env, proposal_id)
+    }
+
+    /// Check whether the proposer deposit has been refunded for a proposal.
+    pub fn is_deposit_refunded(env: Env, proposal_id: u64) -> bool {
+        load_proposal(&env, proposal_id)
+            .map(|p| p.deposit_refunded)
+            .unwrap_or(false)
     }
 
     /// Get the vote tally for a specific option.

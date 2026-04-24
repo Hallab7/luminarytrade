@@ -44,7 +44,7 @@ fn advance_time(env: &Env, seconds: u64) {
 
 /// Create a simple binary proposal with default settings
 fn create_binary_proposal(env: &Env, client: &GovernanceContractClient, proposer: &Address) -> u64 {
-    client.create_proposal(
+    let id = client.create_proposal(
         proposer,
         &ProposalParams {
             title: String::from_str(env, "Test Proposal"),
@@ -59,8 +59,17 @@ fn create_binary_proposal(env: &Env, client: &GovernanceContractClient, proposer
             min_stake_to_vote: 0i128,
             whitelist: Vec::new(env),
             blacklist: Vec::new(env),
+            proposal_deposit: 100_000_000i128,
         },
-    )
+    );
+
+    // Governance proposals now start waitlisted and must be approved by community.
+    for _ in 0..3 {
+        let approver = Address::generate(env);
+        client.approve_waitlisted(&approver, &id);
+    }
+
+    id
 }
 
 // ============================================================================
@@ -125,6 +134,7 @@ fn test_create_proposal_too_few_options() {
             min_stake_to_vote: 0i128,
             whitelist: Vec::new(&env),
             blacklist: Vec::new(&env),
+            proposal_deposit: 100_000_000i128,
         },
     );
 }
@@ -230,8 +240,13 @@ fn test_weighted_vote_tally() {
             min_stake_to_vote: 100i128,
             whitelist: Vec::new(&env),
             blacklist: Vec::new(&env),
+            proposal_deposit: 100_000_000i128,
         },
     );
+    for _ in 0..3 {
+        let approver = Address::generate(&env);
+        client.approve_waitlisted(&approver, &id);
+    }
 
     let v1 = Address::generate(&env);
     let v2 = Address::generate(&env);
@@ -285,8 +300,13 @@ fn test_finalize_defeated_no_majority() {
             min_stake_to_vote: 0i128,
             whitelist: Vec::new(&env),
             blacklist: Vec::new(&env),
+            proposal_deposit: 100_000_000i128,
         },
     );
+    for _ in 0..3 {
+        let approver = Address::generate(&env);
+        client.approve_waitlisted(&approver, &id);
+    }
 
     let v1 = Address::generate(&env);
     let v2 = Address::generate(&env);
@@ -388,8 +408,13 @@ fn test_execute_defeated_proposal_fails() {
             min_stake_to_vote: 0i128,
             whitelist: Vec::new(&env),
             blacklist: Vec::new(&env),
+            proposal_deposit: 100_000_000i128,
         },
     );
+    for _ in 0..3 {
+        let approver = Address::generate(&env);
+        client.approve_waitlisted(&approver, &id);
+    }
 
     let v1 = Address::generate(&env);
     let v2 = Address::generate(&env);
@@ -534,8 +559,13 @@ fn test_whitelist_allows_listed_voter() {
             min_stake_to_vote: 0i128,
             whitelist,
             blacklist: Vec::new(&env),
+            proposal_deposit: 100_000_000i128,
         },
     );
+    for _ in 0..3 {
+        let approver = Address::generate(&env);
+        client.approve_waitlisted(&approver, &id);
+    }
 
     client.vote(&allowed, &id, &0u32, &0i128);
     assert!(client.has_voted(&id, &allowed));
@@ -567,8 +597,13 @@ fn test_whitelist_blocks_unlisted_voter() {
             min_stake_to_vote: 0i128,
             whitelist,
             blacklist: Vec::new(&env),
+            proposal_deposit: 100_000_000i128,
         },
     );
+    for _ in 0..3 {
+        let approver = Address::generate(&env);
+        client.approve_waitlisted(&approver, &id);
+    }
 
     client.vote(&stranger, &id, &0u32, &0i128); // should fail
 }
@@ -598,8 +633,13 @@ fn test_blacklist_blocks_voter() {
             min_stake_to_vote: 0i128,
             whitelist: Vec::new(&env),
             blacklist,
+            proposal_deposit: 100_000_000i128,
         },
     );
+    for _ in 0..3 {
+        let approver = Address::generate(&env);
+        client.approve_waitlisted(&approver, &id);
+    }
 
     client.vote(&banned, &id, &0u32, &0i128); // should fail
 }
@@ -628,8 +668,13 @@ fn test_multichoice_proposal() {
             min_stake_to_vote: 0i128,
             whitelist: Vec::new(&env),
             blacklist: Vec::new(&env),
+            proposal_deposit: 100_000_000i128,
         },
     );
+    for _ in 0..3 {
+        let approver = Address::generate(&env);
+        client.approve_waitlisted(&approver, &id);
+    }
 
     let v1 = Address::generate(&env);
     let v2 = Address::generate(&env);

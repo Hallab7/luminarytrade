@@ -37,6 +37,8 @@ pub enum ProposalCategory {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[contracttype]
 pub enum ProposalStatus {
+    /// Waiting for enough community approvals before voting opens
+    Waitlisted = 6,
     /// Accepting votes
     Active = 0,
     /// Voting ended, awaiting execution
@@ -73,8 +75,12 @@ pub struct Proposal {
     pub voting_start: u64,
     /// Timestamp when voting closes
     pub voting_end: u64,
+    /// Requested voting period for this proposal
+    pub voting_period: u64,
     /// Timestamp after which execution is allowed (voting_end + grace_period)
     pub execution_after: u64,
+    /// Requested grace period for this proposal
+    pub grace_period: u64,
     /// Timestamp after which the proposal expires if not executed
     pub expires_at: u64,
     /// Minimum % of total eligible votes required (basis points, 10000 = 100%)
@@ -86,6 +92,14 @@ pub struct Proposal {
     pub winning_option: Option<u32>,
     /// Total votes cast (sum across all options)
     pub total_votes: i128,
+    /// Deposit posted by proposer when submitting to the waitlist
+    pub proposal_deposit: i128,
+    /// Whether deposit has been refunded after successful governance outcome
+    pub deposit_refunded: bool,
+    /// Number of community approvals while in waitlist phase
+    pub waitlist_approvals: u32,
+    /// Required number of approvals to activate proposal voting
+    pub waitlist_threshold: u32,
 }
 
 /// Per-option vote tally
@@ -117,6 +131,8 @@ pub enum ProposalKey {
     Whitelist(u64),
     /// Blacklist for a proposal
     Blacklist(u64),
+    /// Community approval marker for waitlist activation
+    WaitlistApproved(u64, Address),
 }
 
 // ============================================================================
@@ -202,4 +218,19 @@ pub fn is_whitelisted(env: &Env, proposal_id: u64, voter: &Address) -> bool {
         .unwrap_or_else(|| Vec::new(env));
     // Empty whitelist means open to all
     whitelist.is_empty() || whitelist.contains(voter)
+}
+
+/// Mark that an address has approved a waitlisted proposal.
+pub fn mark_waitlist_approval(env: &Env, proposal_id: u64, voter: &Address) {
+    env.storage()
+        .persistent()
+        .set(&ProposalKey::WaitlistApproved(proposal_id, voter.clone()), &true);
+}
+
+/// Check if an address already approved a waitlisted proposal.
+pub fn has_waitlist_approved(env: &Env, proposal_id: u64, voter: &Address) -> bool {
+    env.storage()
+        .persistent()
+        .get(&ProposalKey::WaitlistApproved(proposal_id, voter.clone()))
+        .unwrap_or(false)
 }
