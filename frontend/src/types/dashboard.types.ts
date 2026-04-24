@@ -76,6 +76,30 @@ export interface DashboardSummary {
 
 // ─── Unified Dashboard Data ───────────────────────────────────────────────────
 
+export interface TradingBonusPoint {
+  date: string;
+  bonusAmount: number;
+  multiplier: number;
+  tradeCount: number;
+}
+
+export interface BonusBreakdown {
+  type: 'referral' | 'affiliate' | 'activity' | 'bugReport' | 'volume';
+  label: string;
+  amount: number;
+  color: string;
+  count?: number;
+}
+
+export interface BonusHistoryItem {
+  id: string;
+  type: 'referral' | 'affiliate' | 'activity' | 'bugReport' | 'volume';
+  amount: number;
+  description: string;
+  timestamp: string;
+  status: 'earned' | 'pending' | 'paid';
+}
+
 export interface DashboardData {
   summary: DashboardSummary;
   creditScoreTrend: CreditScoreTrendPoint[];
@@ -83,6 +107,9 @@ export interface DashboardData {
   transactionVolume: TransactionVolumePoint[];
   agentPerformance: AgentPerformanceMetric[];
   riskDistribution: RiskDistributionSlice[];
+  tradingBonuses: TradingBonusPoint[];
+  bonusBreakdown: BonusBreakdown[];
+  bonusHistory: BonusHistoryItem[];
   scoreStatistics: DataStatistics;
   volumeStatistics: DataStatistics;
 }

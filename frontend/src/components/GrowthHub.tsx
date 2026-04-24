@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useResponsive } from "../hooks/useResponsive";
 import { spacing } from "../styles/theme";
+import { waitlistService } from "../services/waitlist.service";
 
 type SocialPlatform = "Twitter" | "LinkedIn" | "WhatsApp" | "Telegram";
 
@@ -182,7 +183,7 @@ const GrowthHub: React.FC = () => {
     setShareFeedback(`${platform} share window opened with your referral link attached.`);
   };
 
-  const handleWaitlistSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleWaitlistSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = waitlistName.trim();
     const trimmedEmail = waitlistEmail.trim();
@@ -192,11 +193,24 @@ const GrowthHub: React.FC = () => {
       return;
     }
 
-    setWaitlistFeedback(
-      `${trimmedName}, you're in. Premium launch notes and invite windows will be sent to ${trimmedEmail}.`,
-    );
-    setWaitlistName("");
-    setWaitlistEmail("");
+    try {
+      const result = await waitlistService.join(trimmedEmail, trimmedName);
+
+      if (result.emailVerified) {
+        setWaitlistFeedback(
+          `${trimmedName}, you're in! Premium launch notes and invite windows will be sent to ${trimmedEmail}.`
+        );
+      } else {
+        setWaitlistFeedback(
+          `${trimmedName}, confirmation email sent to ${trimmedEmail}. Please verify to secure your spot.`
+        );
+      }
+
+      setWaitlistName("");
+      setWaitlistEmail("");
+    } catch (error: any) {
+      setWaitlistFeedback(`Error: ${error.message || "Failed to join waitlist"}. Please try again.`);
+    }
   };
 
   const handlePayoutSubmit = (event: React.FormEvent<HTMLFormElement>) => {

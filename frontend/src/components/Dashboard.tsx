@@ -10,6 +10,8 @@ import React, { useState } from 'react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useRealtimeDashboard } from '../hooks/useRealtimeDashboard';
 import { useWebSocket } from '../context/WebSocketContext';
+import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { FraudHeatmapCell, TimeWindow } from '../types/dashboard.types';
 import TimeWindowSelector from './dashboard/TimeWindowSelector';
 import CreditScoreTrendChart from './dashboard/CreditScoreTrendChart';
@@ -17,10 +19,13 @@ import FraudRiskHeatmap from './dashboard/FraudRiskHeatmap';
 import TransactionVolumeChart from './dashboard/TransactionVolumeChart';
 import AgentPerformanceChart from './dashboard/AgentPerformanceChart';
 import RiskDistributionChart from './dashboard/RiskDistributionChart';
+import TradingBonusesChart from './dashboard/TradingBonusesChart';
 import ConnectionStatusBar from './dashboard/ConnectionStatusBar';
 import LiveAlertFeed from './dashboard/LiveAlertFeed';
+import WaitlistStatus from './WaitlistStatus';
 import { printDashboard } from '../utils/exportUtils';
 import { useResponsive } from '../hooks/useResponsive';
+import { createSuccessNotification } from '../contexts/NotificationContext';
 import { spacing } from '../styles/theme';
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -152,6 +157,9 @@ const Dashboard: React.FC = () => {
   const [drillDownCell, setDrillDownCell] = useState<FraudHeatmapCell | null>(null);
   const { isMobile, isTablet } = useResponsive();
 
+  const addNotification = useNotification((state) => state.addNotification);
+  const latestBonuses = useRealtimeDashboard().latestBonuses;
+
   // Merge live realtime patches on top of snapshot data
   const mergedSummary = data
     ? { ...data.summary, ...summaryPatch }
@@ -166,6 +174,24 @@ const Dashboard: React.FC = () => {
     ...(data?.fraudHeatmap ?? []),
     ...liveFraudCells,
   ];
+
+  const mergedTradingBonuses = data?.tradingBonuses ?? [];
+  const mergedBonusBreakdown = data?.bonusBreakdown ?? [];
+  const mergedBonusHistory = data?.bonusHistory ?? [];
+
+  // Bonus notifications
+  useEffect(() => {
+    if (latestBonuses.length > 0) {
+      const latest = latestBonuses[0];
+      addNotification(
+        createSuccessNotification(
+          `+${latest.amount} tokens from ${latest.type} bonus - ${latest.description}`,
+          'New Trading Bonus!',
+          6000
+        )
+      );
+    }
+  }, [latestBonuses, addNotification]);
 
   return (
     <div style={{
@@ -299,15 +325,32 @@ const Dashboard: React.FC = () => {
             icon="🤖"
             color="#22d3ee"
           />
-          <StatCard
+<StatCard
             label="Risk Score"
             value={`${mergedSummary.riskScore}%`}
             icon="⚡"
             color="#ef4444"
             trend={`σ ${data?.scoreStatistics.stddev ?? '—'}`}
           />
+          <StatCard
+            label="Trading Bonuses"
+            value={`$${(data?.tradingBonuses?.reduce((s, p) => s + p.bonusAmount, 0) ?? 0).toLocaleString()}`}
+            icon="💰"
+            color="#22c55e"
+            trend={`${data?.bonusBreakdown?.length ?? 0} sources`}
+          />
+        </div>
+
+        {/* Waitlist Status */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <WaitlistStatus userEmail={user?.email} />
         </div>
       )}
+
+      {/* Waitlist Status */}
+      <div style={{ marginBottom: spacing.lg }}>
+        <WaitlistStatus userEmail={user?.email} />
+      </div>
 
       {/* Chart Grid */}
       <div style={{
@@ -338,6 +381,14 @@ const Dashboard: React.FC = () => {
           data={data?.riskDistribution ?? []}
           loading={loading}
         />
+        <div style={{ gridColumn: '1 / -1' }}>
+          <TradingBonusesChart
+            data={mergedTradingBonuses}
+            breakdown={mergedBonusBreakdown}
+            loading={loading}
+          />
+        </div>
+
         <div style={{ gridColumn: '1 / -1' }}>
           <AgentPerformanceChart
             data={data?.agentPerformance ?? []}

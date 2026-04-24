@@ -1,4 +1,5 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { WaitlistVerificationToken } from './waitlist-verification-token.entity';
 
 export enum WaitlistStatus {
   PENDING = 'pending',
@@ -18,6 +19,9 @@ export class Waitlist {
   @Column({ nullable: true })
   name: string;
 
+  @Column({ default: false })
+  emailVerified: boolean;
+
   @Column({
     type: 'enum',
     enum: WaitlistStatus,
@@ -33,4 +37,9 @@ export class Waitlist {
 
   @Column({ nullable: true })
   notifiedAt: Date;
+
+  @OneToMany(() => WaitlistVerificationToken, (token) => token.waitlist, {
+    cascade: true,
+  })
+  verificationTokens: WaitlistVerificationToken[];
 }

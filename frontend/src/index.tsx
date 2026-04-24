@@ -5,6 +5,7 @@ import { CssBaseline, ThemeProvider } from '@mui/material';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { WalletProvider } from './WalletContent';
+import { WebSocketProvider } from './context/WebSocketContext';
 import { appTheme } from './styles/theme';
 
 const root = ReactDOM.createRoot(
@@ -16,11 +17,13 @@ root.render(
     <ThemeProvider theme={appTheme}>
       <CssBaseline />
       <BrowserRouter>
-        <AuthProvider>
-          <WalletProvider>
-            <App />
-          </WalletProvider>
-        </AuthProvider>
+        <WebSocketProvider>
+          <AuthProvider>
+            <WalletProvider>
+              <App />
+            </WalletProvider>
+          </AuthProvider>
+        </WebSocketProvider>
       </BrowserRouter>
     </ThemeProvider>
   </React.StrictMode>

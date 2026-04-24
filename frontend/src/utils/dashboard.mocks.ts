@@ -164,6 +164,10 @@ export function generateDashboardData(tw: TimeWindow): DashboardData {
         riskScore: riskDistribution.find((s) => s.name === 'Critical')?.value ?? 0,
     };
 
+    const tradingBonuses = genTradingBonuses(tw, rng);
+    const bonusBreakdown = genBonusBreakdown(rng);
+    const bonusHistory = genBonusHistory(rng);
+
     return {
         summary,
         creditScoreTrend,
@@ -171,7 +175,17 @@ export function generateDashboardData(tw: TimeWindow): DashboardData {
         transactionVolume,
         agentPerformance,
         riskDistribution,
+        tradingBonuses,
+        bonusBreakdown,
+        bonusHistory,
         scoreStatistics: calcStats(scores),
         volumeStatistics: calcStats(volumes),
     };
 }
+
+function genTradingBonuses(tw: TimeWindow, rng: () => number): TradingBonusPoint[] { const labels = dateLabels(tw); return labels.map((date) => ({ date, bonusAmount: Math.round(50 + rng() * 450), multiplier: 1 + Math.round(rng() * 10) / 10, tradeCount: 20 + Math.floor(rng() * 180), })); }
+
+function genBonusBreakdown(rng: () => number): BonusBreakdown[] { return [ { type: 'referral', label: 'Referral Bonus', amount: Math.round(100 + rng() * 900), color: '#22c55e', count: 3 + Math.floor(rng() * 8) }, { type: 'affiliate', label: 'Affiliate Commission', amount: Math.round(200 + rng() * 800), color: '#3b82f6', count: 1 + Math.floor(rng() * 5) }, { type: 'activity', label: 'Activity Multiplier', amount: Math.round(50 + rng() * 200), color: '#f59e0b', count: 12 }, { type: 'bugReport', label: 'Bug Report Reward', amount: Math.round(50 + rng() * 300), color: '#ec4899', count: 1 + Math.floor(rng() * 3) }, { type: 'volume', label: 'Volume Bonus', amount: Math.round(300 + rng() * 700), color: '#8b5cf6', count: 2 + Math.floor(rng() * 4) }, ]; }
+
+
+function genBonusHistory(rng: () => number): BonusHistoryItem[] { const statuses = ["earned", "pending", "paid"] as const; const types = ["referral", "affiliate", "activity", "bugReport", "volume"] as const; const descriptions = ["Referral signup: user_4829", "Affiliate commission from trade", "Daily activity streak", "Bug report verified: #BUG-482", "High-volume trading bonus", "Referral signup: user_7234", "Weekly affiliate payout", "7-day activity multiplier", "Bug report verified: #BUG-193", "Premium volume tier"]; return Array.from({ length: 10 }, (_, i) => ({ id: "BONUS-" + (1000 + i), type: types[i % types.length], amount: Math.round(50 + rng() * 500), description: descriptions[i] || "Bonus", timestamp: new Date(Date.now() - (i * 24 * 60 * 60 * 1000)).toISOString(), status: statuses[Math.floor(rng() * 3) % 3], })); }

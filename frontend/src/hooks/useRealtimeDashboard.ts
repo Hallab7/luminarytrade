@@ -2,7 +2,7 @@
  * useRealtimeDashboard.ts
  *
  * Bridges the WebSocketContext into the existing useDashboardData lifecycle.
- * Applies live score / fraud / price events on top of the snapshot data
+ * Applies live score / fraud / price / bonus events on top of the snapshot data
  * returned by useDashboardData, with debouncing to prevent render jank.
  *
  * Drop-in companion to useDashboardData — Dashboard.tsx can use both in
@@ -16,6 +16,7 @@ import {
   usePriceUpdates,
   useScoreUpdates,
   useWebSocket,
+  useBonusUpdates,
 } from '../context/WebSocketContext';
 import {
   CreditScoreTrendPoint,
@@ -26,6 +27,7 @@ import {
   FraudAlertPayload,
   PriceUpdatePayload,
   ScoreUpdatePayload,
+  BonusUpdatePayload,
   WsEvent,
 } from '../services/WebSocketManager';
 
@@ -40,6 +42,8 @@ export interface RealtimeOverlay {
   liveFraudCells: FraudHeatmapCell[];
   /** Latest prices keyed by asset symbol */
   latestPrices: Record<string, PriceUpdatePayload>;
+  /** Latest bonus updates */
+  latestBonuses: BonusUpdatePayload[];
   /** Whether any live data has arrived */
   hasLiveData: boolean;
 }
@@ -87,6 +91,7 @@ export function useRealtimeDashboard(): RealtimeOverlay {
   const scorePointsRef = useRef<CreditScoreTrendPoint[]>([]);
   const fraudCellsRef = useRef<FraudHeatmapCell[]>([]);
   const pricesRef = useRef<Record<string, PriceUpdatePayload>>({});
+  const bonusUpdatesRef = useRef<BonusUpdatePayload[]>([]);
   const summaryPatchRef = useRef<Partial<DashboardSummary>>({});
 
   // Trigger re-render after debounced batch
@@ -142,7 +147,19 @@ export function useRealtimeDashboard(): RealtimeOverlay {
     ),
   );
 
-  // Reset live data when connection drops
+  // Bonus updates
+  useBonusUpdates(
+    useCallback(
+      (evt: WsEvent<BonusUpdatePayload>) => {
+        bonusUpdatesRef.current = [evt.payload, ...bonusUpdatesRef.current].slice(0, 50);
+        summaryPatchRef.current = {
+          ...summaryPatchRef.current,
+        };
+        scheduleFlush();
+      },
+      [scheduleFlush],
+    ),
+  );
   useEffect(() => {
     if (status === 'disconnected') {
       // Keep data visible in offline mode — do not reset
@@ -156,7 +173,8 @@ export function useRealtimeDashboard(): RealtimeOverlay {
   const hasLiveData =
     scorePointsRef.current.length > 0 ||
     fraudCellsRef.current.length > 0 ||
-    Object.keys(pricesRef.current).length > 0;
+    Object.keys(pricesRef.current).length > 0 ||
+    bonusUpdatesRef.current.length > 0;
 
   // Snapshot on each debounced tick
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,6 +183,7 @@ export function useRealtimeDashboard(): RealtimeOverlay {
     liveScorePoints: [...scorePointsRef.current],
     liveFraudCells: [...fraudCellsRef.current],
     latestPrices: { ...pricesRef.current },
+    latestBonuses: [...bonusUpdatesRef.current],
     hasLiveData,
     // debouncedTick consumed implicitly via the render cycle
     // eslint-disable-next-line react-hooks/exhaustive-deps
