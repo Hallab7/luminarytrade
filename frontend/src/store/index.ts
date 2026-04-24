@@ -5,6 +5,7 @@ import agentsReducer from './slices/agentsSlice';
 import scoresReducer from './slices/scoresSlice';
 import realtimeReducer from './slices/realtimeSlice';
 import uiReducer from './slices/uiSlice';
+import { baseApi } from './api/baseApi';
 
 export const store = configureStore({
   reducer: {
@@ -14,6 +15,8 @@ export const store = configureStore({
     scores: scoresReducer,
     realtime: realtimeReducer,
     ui: uiReducer,
+    // Add RTK Query API reducer
+    [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -25,7 +28,9 @@ export const store = configureStore({
         // Ignore these paths in the state
         ignoredPaths: ['realtime.socket'],
       },
-    }),
+    })
+    // Add RTK Query middleware for caching and request deduplication
+    .concat(baseApi.middleware),
 });
 
 export type AppDispatch = typeof store.dispatch;
